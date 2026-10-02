@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MindWell Advanced AI Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass-container { backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
+        .aurora-bg {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); width: 140vw; height: 140vh;
+            background-image: radial-gradient(circle at 0% 0%, #3b82f6, transparent 40%),
+                              radial-gradient(circle at 100% 0%, #10b981, transparent 40%),
+                              radial-gradient(circle at 100% 100%, #8b5cf6, transparent 40%),
+                              radial-gradient(circle at 0% 100%, #ef4444, transparent 40%);
+            animation: aurora-move 20s infinite linear;
+            z-index: -1;
+        }
+        @keyframes aurora-move { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+
+        .typewriter-cursor::after { content: '▋'; animation: blink 1s step-end infinite; color: #3b82f6; }
+        @keyframes blink { 50% { opacity: 0; } }
+        .ai-message-bubble:hover .pin-button { opacity: 1; }
+    </style>
+</head>
+<body class="bg-slate-900 flex items-center justify-center min-h-screen p-4">
+    <div class="absolute inset-0 z-0 overflow-hidden">
+        <div class="aurora-bg"></div>
+    </div>
+
+    <div class="w-full max-w-5xl glass-container bg-slate-900/60 rounded-2xl p-4 md:p-6 shadow-2xl border border-slate-700 h-[90vh] max-h-[800px] grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Left Panel: Chat Interface -->
+        <div class="md:col-span-2 flex flex-col h-full">
+            <div class="flex-shrink-0 flex justify-between items-center mb-4">
+                <div>
+                    <h1 class="text-xl font-bold text-slate-100">MindWell Assistant</h1>
+                    <p class="text-xs text-blue-400">Your Private Wellness Companion</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <select id="language-selector" class="bg-slate-800/80 border border-slate-600/50 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-auto p-2.5">
+                        <option value="English" selected>English</option>
+                        <option value="Hindi">हिन्दी (Hindi)</option>
+                        <option value="Bengali">বাংলা (Bengali)</option>
+                        <option value="Telugu">తెలుగు (Telugu)</option>
+                    </select>
+                    <!-- New Feature: Clear Chat Button -->
+                    <button id="clear-chat-btn" title="Clear chat history" class="p-2.5 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors text-red-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="chat-history" class="custom-scrollbar flex-grow bg-black/30 rounded-lg p-4 space-y-4 overflow-y-auto">
+                <!-- Chat messages dynamically inserted here -->
+            </div>
+
+            <div class="flex-shrink-0 mt-4 flex items-center space-x-2">
+                <form id="chat-form" class="flex-grow flex items-center bg-slate-800 rounded-full border border-slate-600">
+                    <input id="user-input" type="text" placeholder="Type your message..." autocomplete="off" class="flex-grow bg-transparent p-3 pl-5 text-slate-200 focus:outline-none">
+                    <button id="send-btn" type="submit" class="p-2 m-1 bg-blue-600 hover:bg-blue-500 rounded-full transition-colors text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Right Panel: Insights & Tools -->
+        <div class="md:col-span-1 flex flex-col space-y-4 h-full">
+            <!-- AI-Powered Insights -->
+            <div>
+                <h2 class="text-lg font-bold text-slate-100 mb-2">Insights & Tools</h2>
+                <div class="bg-black/30 rounded-lg p-3 space-y-2">
+                    <button id="summarize-btn" class="w-full flex items-center gap-3 text-left p-3 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg transition-colors">
+                        <svg class="text-purple-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>
+                        <span class="font-semibold text-slate-200">Smart Summary</span>
+                    </button>
+                    <button id="analyze-mood-btn" class="w-full flex items-center gap-3 text-left p-3 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg transition-colors">
+                         <svg class="text-teal-300" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10c0-4.42-2.87-8.17-6.84-9.5c.51.53.84 1.22.84 2c0 1.38-1.12 2.5-2.5 2.5S11 5.88 11 4.5c0-.78.33-1.47.84-2A10 10 0 0 0 12 2Z"></path><path d="M12 12a2.5 2.5 0 1 0 0-5a2.5 2.5 0 0 0 0 5Z"></path><path d="M12 12a5 5 0 1 0 0-10a5 5 0 0 0 0 10Z"></path></svg>
+                        <span class="font-semibold text-slate-200">Analyze Mood</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Conversation Topics -->
+             <div>
+                 <h2 class="text-lg font-bold text-slate-100 mb-2">Conversation Topics</h2>
+                 <div id="topics-container" class="bg-black/30 rounded-lg p-3 grid grid-cols-2 gap-2">
+                     <button class="topic-btn p-2 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg transition-colors text-slate-300 text-sm font-semibold">Exam Stress</button>
+                     <button class="topic-btn p-2 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg transition-colors text-slate-300 text-sm font-semibold">Overwhelm</button>
+                     <button class="topic-btn p-2 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg transition-colors text-slate-300 text-sm font-semibold">Loneliness</button>
+                     <button class="topic-btn p-2 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg transition-colors text-slate-300 text-sm font-semibold">Motivation</button>
+                 </div>
+            </div>
+
+            <!-- Pinned Messages -->
+            <div class="flex-grow flex flex-col">
+                <h2 class="text-lg font-bold text-slate-100 mb-2">Pinned Messages</h2>
+                <div id="pinned-messages" class="custom-scrollbar bg-black/30 rounded-lg p-2 flex-grow overflow-y-auto">
+                   <p class="text-slate-400 text-sm p-2 text-center">Click the pin icon on a message to save it here.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- API KEY ADDED ---
+        const GEMINI_API_KEY = "AIzaSyBNQ4WTtZZsv5UbSc2BOlJTmPLmq8dIo9s";
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_API_KEY}`;
+        
+        // --- DOM Elements ---
+        const DOMElements = {
+            chatHistory: document.getElementById('chat-history'), chatForm: document.getElementById('chat-form'),
+            userInput: document.getElementById('user-input'), sendBtn: document.getElementById('send-btn'),
+            languageSelector: document.getElementById('language-selector'),
+            summarizeBtn: document.getElementById('summarize-btn'), analyzeMoodBtn: document.getElementById('analyze-mood-btn'),
+            topicsContainer: document.getElementById('topics-container'), pinnedMessages: document.getElementById('pinned-messages'),
+            clearChatBtn: document.getElementById('clear-chat-btn'),
+        };
+        
+        // --- State --- 
+        let isLoading = false; let conversationHistory = []; let pinnedMessages = []; let typewriterInterval;
+
+        // --- System Prompts for AI ---
+        const mainSystemPrompt = `You are "MindWell Assistant," a supportive AI for students. Your goal is to help with mental health topics like stress, anxiety, and burnout. You must strictly refuse to answer off-topic questions. You are not a doctor and cannot give medical advice. If a user is in crisis, gently guide them to a professional. Respond ONLY in the language the user specifies.`;
+        const summarySystemPrompt = `Summarize the key points and feelings expressed in the following user-AI conversation into a concise, empathetic paragraph for the user's private reflection.`;
+        const moodAnalysisSystemPrompt = `Based on the following conversation, analyze the user's likely emotional state. Describe it in one short, gentle, and encouraging sentence. For example: "It sounds like you're feeling stressed, but also hopeful about finding solutions."`;
+        
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadConversation();
+            loadPinnedMessages();
+
+            // --- BUG FIX: Only add welcome message if chat is empty ---
+            if (conversationHistory.length === 0) {
+                addMessageToChat('ai', 'Hello! I\'m here to support your well-being. How can I help you today?');
+            }
+
+            // Event Listeners
+            DOMElements.chatForm.addEventListener('submit', handleFormSubmit);
+            DOMElements.summarizeBtn.addEventListener('click', handleSummarize);
+            DOMElements.analyzeMoodBtn.addEventListener('click', handleAnalyzeMood);
+            DOMElements.clearChatBtn.addEventListener('click', handleClearChat);
+            DOMElements.topicsContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('topic-btn')) {
+                    const topic = e.target.textContent;
+                    addMessageToChat('user', `Let's talk about ${topic}.`);
+                    handleAutomatedQuery(`Tell me more about how to deal with ${topic}.`);
+                }
+            });
+        });
+
+        // --- Core Chat Logic ---
+        async function handleFormSubmit(e) { e.preventDefault(); const messageText = DOMElements.userInput.value.trim(); if (!messageText || isLoading) return; addMessageToChat('user', messageText); DOMElements.userInput.value = ''; await processQuery(messageText); }
+        async function handleAutomatedQuery(query) { if (isLoading) return; await processQuery(query, false); }
+        async function processQuery(query) {
+            setLoading(true);
+            try {
+                const response = await callGeminiAPI(query, mainSystemPrompt);
+                addMessageToChat('ai', response, true);
+            } catch (error) {
+                console.error("API Error:", error);
+                addMessageToChat('ai', 'Sorry, I encountered an error connecting to the AI. Please check the API key and try again.');
+            } finally {
+                setLoading(false);
+            }
+        }
+        
+        // --- Insights & Tools Logic ---
+        async function handleSummarize() { if (isLoading || conversationHistory.length < 2) { alert("Have a brief conversation first."); return; } setLoading(true); try { const fullConvo = conversationHistory.map(m => `${m.sender}: ${m.text}`).join('\n'); const summary = await callGeminiAPI(fullConvo, summarySystemPrompt); addMessageToChat('ai', `Here's a summary of our chat:\n\n${summary}`, true); } catch (e) { addMessageToChat('ai', 'Sorry, I couldn\'t create a summary right now.'); } finally { setLoading(false); } }
+        async function handleAnalyzeMood() { if (isLoading || conversationHistory.length < 2) { alert("Have a brief conversation first."); return; } setLoading(true); try { const fullConvo = conversationHistory.map(m => `${m.sender}: ${m.text}`).join('\n'); const mood = await callGeminiAPI(fullConvo, moodAnalysisSystemPrompt); addMessageToChat('ai', `Based on our chat, here's a gentle observation:\n\n${mood}`, true); } catch (e) { addMessageToChat('ai', 'Sorry, I couldn\'t analyze the mood right now.'); } finally { setLoading(false); } }
+        
+        // --- New Feature: Clear Chat Logic ---
+        function handleClearChat() {
+            DOMElements.chatHistory.innerHTML = '';
+            conversationHistory = [];
+            saveConversation();
+            addMessageToChat('ai', 'Chat history cleared. How can I help you now?');
+        }
+
+        // --- Pinning Logic ---
+        function pinMessage(text) { if (pinnedMessages.includes(text)) return; pinnedMessages.unshift(text); if (pinnedMessages.length > 10) pinnedMessages.pop(); savePinnedMessages(); renderPinnedMessages(); }
+        function unpinMessage(text) { pinnedMessages = pinnedMessages.filter(p => p !== text); savePinnedMessages(); renderPinnedMessages(); }
+        function renderPinnedMessages() { DOMElements.pinnedMessages.innerHTML = ''; if (pinnedMessages.length === 0) { DOMElements.pinnedMessages.innerHTML = `<p class="text-slate-400 text-sm p-2 text-center">Click the pin icon on a message to save it here.</p>`; return; } pinnedMessages.forEach(text => { const pinEl = document.createElement('div'); pinEl.className = 'p-2 bg-slate-800/50 rounded-lg mb-2 text-sm text-slate-300 relative group'; pinEl.innerHTML = `<p>${text}</p><button class="unpin-btn absolute top-1 right-1 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>`; pinEl.querySelector('.unpin-btn').addEventListener('click', () => unpinMessage(text)); DOMElements.pinnedMessages.appendChild(pinEl); }); }
+
+        // --- Helper & Utility functions ---
+        async function callGeminiAPI(prompt, systemInstruction) {
+            const selectedLanguage = DOMElements.languageSelector.value;
+            const fullPrompt = `Language: ${selectedLanguage}. User said: "${prompt}"`;
+            const response = await fetch(GEMINI_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }], systemInstruction: { parts: [{ text: systemInstruction }] }, })
+            });
+            if (!response.ok) {
+                 const errorBody = await response.json();
+                 console.error("API Error Response:", errorBody);
+                 throw new Error(`API Request Failed with status ${response.status}`);
+            }
+            const result = await response.json();
+            return result.candidates[0].content.parts[0].text;
+        }
+
+        function addMessageToChat(sender, text, useTypewriter = false) {
+            // This function is now safe to call multiple times for the same message
+            if(sender !== 'user') {
+                const existingMessage = conversationHistory.find(m => m.sender === sender && m.text === text);
+                if (existingMessage && useTypewriter) return; // Prevents re-typing welcome message
+            }
+
+            const messageContainer = document.createElement('div');
+            messageContainer.className = `flex items-start gap-2.5 ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+
+            const messageBubble = document.createElement('div');
+            messageBubble.className = `max-w-xs md:max-w-md rounded-lg px-4 py-2 relative group ${sender === 'user' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-200 ai-message-bubble'}`;
+            
+            if (sender === 'ai' && useTypewriter) {
+                messageBubble.classList.add('typewriter-cursor');
+                typewriterEffect(messageBubble, text, () => { messageBubble.classList.remove('typewriter-cursor'); });
+            } else {
+                messageBubble.textContent = text;
+            }
+
+            if (sender === 'ai') {
+                const pinButton = document.createElement('button');
+                pinButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pin-angle-fill" viewBox="0 0 16 16"><path d="M9.828.722a.5.5 0 0 1 .354.146l4.95 4.95a.5.5 0 0 1 0 .707c-.48.48-1.072.588-1.503.588-.177 0-.335-.018-.46-.039l-3.134 3.134a5.927 5.927 0 0 1 .16 1.013c.046.702-.032 1.687-.72 2.375a.5.5 0 0 1-.707 0l-2.829-2.828-3.182 3.182c-.195.195-1.219.902-1.414.707-.195-.195.512-1.22.707-1.414l3.182-3.182-2.828-2.829a.5.5 0 0 1 0-.707c.688-.688 1.673-.767 2.375-.72a5.922 5.922 0 0 1 1.013.16l3.134-3.133a2.772 2.772 0 0 1-.04-.461c0-.43.108-1.022.589-1.503a.5.5 0 0 1 .353-.146z"/></svg>`;
+                pinButton.className = 'pin-button absolute -top-2 -right-2 bg-slate-600 p-1.5 rounded-full text-slate-300 hover:bg-slate-500 opacity-0 group-hover:opacity-100 transition-opacity';
+                pinButton.title = "Pin Message";
+                pinButton.onclick = () => pinMessage(text);
+                messageBubble.appendChild(pinButton);
+            }
+            
+            messageContainer.appendChild(messageBubble);
+            DOMElements.chatHistory.appendChild(messageContainer);
+            DOMElements.chatHistory.scrollTop = DOMElements.chatHistory.scrollHeight;
+
+            // Only add to history if it's not the initial welcome message being re-added
+            if (!conversationHistory.find(m => m.text === text && m.sender === sender)) {
+                conversationHistory.push({ sender, text });
+            }
+            saveConversation();
+        }
+
+        function typewriterEffect(element, text, onComplete) { 
+            clearInterval(typewriterInterval);
+            let i = 0; const words = text.split(' '); element.innerHTML = '';
+            typewriterInterval = setInterval(() => {
+                if (i < words.length) { 
+                    element.innerHTML += (i > 0 ? ' ' : '') + words[i]; 
+                    i++; 
+                    DOMElements.chatHistory.scrollTop = DOMElements.chatHistory.scrollHeight;
+                } 
+                else { clearInterval(typewriterInterval); if (onComplete) onComplete(); }
+            }, 80);
+         }
+
+        function setLoading(state) { DOMElements.userInput.disabled = state; DOMElements.sendBtn.disabled = state; DOMElements.userInput.placeholder = state ? 'MindWell is thinking...' : 'Type your message...'; isLoading = state; }
+        
+        // --- Persistence ---
+        function saveConversation() { localStorage.setItem('mindWellConversation', JSON.stringify(conversationHistory)); }
+        function loadConversation() { const saved = localStorage.getItem('mindWellConversation'); if (saved) { conversationHistory = JSON.parse(saved); DOMElements.chatHistory.innerHTML = ''; conversationHistory.forEach(msg => addMessageToChat(msg.sender, msg.text)); } }
+        function savePinnedMessages() { localStorage.setItem('mindWellPinned', JSON.stringify(pinnedMessages)); }
+        function loadPinnedMessages() { const saved = localStorage.getItem('mindWellPinned'); if (saved) { pinnedMessages = JSON.parse(saved); renderPinnedMessages(); } }
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+/* Day theme */
+
+
+.day-theme {
+  --bg-color: #ffffff;
+  --accent-color: #22c55e;
+  --text-color: #111827; /* much darker for day mode */
+  --secondary-bg: #f1f5f9;
+  --button-bg: #22c55e;
+  --button-text: #111827; /* dark text on light buttons */
+  --button-hover-bg: #16a34a;
+  --input-bg: #f9fafb;
+  --input-text: #111827;
+  --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+
+
+.night-theme {
+  --bg-color: #0f172a;
+  --accent-color: #10b981;
+  --text-color: #ffffff; /* pure white for text in dark mode */
+  --secondary-bg: #1e293b;
+  --button-bg: #10b981;
+  --button-text: #ffffff; /* pure white text on dark buttons */
+  --button-hover-bg: #059669;
+  --input-bg: #1e293b;
+  --input-text: #f3f4f6; /* light gray for input text */
+  --bg-gradient: linear-gradient(111.4deg, #0f172a 6.5%, #1e293b 93.2%);
+}
+
+body {
+  background: var(--bg-gradient);
+  color: var(--text-color);
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+button, .btn {
+  background: var(--button-bg);
+  color: var(--button-text);
+  transition: background 0.2s, color 0.2s;
+}
+button:hover, .btn:hover {
+  background: var(--button-hover-bg);
+  color: var(--button-text);
+}
+
+input, textarea, select {
+  background: var(--input-bg);
+  color: var(--input-text);
+  border: 1px solid var(--accent-color);
+}

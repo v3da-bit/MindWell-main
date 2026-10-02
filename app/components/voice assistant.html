@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoodScape Pro - Your Emotion Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Core library for facial recognition -->
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <!-- Library for the mood tracking chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            background-color: #0B1120;
+            transition: background-color 1s ease-in-out;
+        }
+        .glass-container {
+            background: rgba(17, 25, 40, 0.7);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 80px rgba(0,0,0,0.4);
+            transition: border-color 1s ease-in-out;
+        }
+        #video {
+            position: absolute;
+            top: 50%; left: 50%;
+            min-width: 100%; min-height: 100%;
+            width: auto; height: auto;
+            transform: translate(-50%, -50%) scaleX(-1); /* Flip horizontally */
+        }
+        #canvas { position: absolute; top: 0; left: 0; }
+        .hidden { display: none !important; }
+
+        /* Modal Styles */
+        #modal-overlay { transition: opacity 0.3s ease-in-out; }
+        #modal-content { transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out; }
+
+        /* Custom Scrollbar for History */
+        #mood-history-list::-webkit-scrollbar { width: 6px; }
+        #mood-history-list::-webkit-scrollbar-track { background: #1f2937; }
+        #mood-history-list::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px;}
+
+        /* Dynamic mood colors */
+        .mood-border-happy { border-color: #22c55e; } .mood-text-happy { color: #22c55e; } .mood-bg-happy { background-color: #22c55e; }
+        .mood-border-sad { border-color: #3b82f6; } .mood-text-sad { color: #3b82f6; } .mood-bg-sad { background-color: #3b82f6; }
+        .mood-border-angry { border-color: #ef4444; } .mood-text-angry { color: #ef4444; } .mood-bg-angry { background-color: #ef4444; }
+        .mood-border-surprised { border-color: #eab308; } .mood-text-surprised { color: #eab308; } .mood-bg-surprised { background-color: #eab308; }
+        .mood-border-neutral { border-color: #a1a1aa; } .mood-text-neutral { color: #a1a1aa; } .mood-bg-neutral { background-color: #a1a1aa; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4 text-gray-200">
+    <div id="main-container" class="w-full max-w-6xl glass-container rounded-2xl p-6 md:p-8 grid grid-cols-1 md:grid-cols-7 gap-6">
+        
+        <!-- Left Panel: Camera Feed -->
+        <div class="md:col-span-3 h-80 md:h-full bg-gray-900 rounded-lg overflow-hidden relative flex items-center justify-center">
+            <video id="video" width="720" height="560" autoplay muted class="hidden"></video>
+            <canvas id="canvas"></canvas>
+            <div id="loader" class="text-center p-4">
+                <p id="loading-text" class="text-lg">Preparing AI Models...</p>
+                <p class="text-sm text-gray-400 mb-4">This may take a moment.</p>
+                <button id="enable-camera-btn" class="w-full bg-blue-600/80 hover:bg-blue-500/80 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-blue-500/50 shadow-lg disabled:bg-gray-600 disabled:cursor-not-allowed" disabled>
+                    Loading Models...
+                </button>
+            </div>
+        </div>
+
+        <!-- Middle Panel: Mood Analysis -->
+        <div class="md:col-span-2 flex flex-col justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-100">MoodScape Analysis</h1>
+                <p id="status" class="text-blue-300 h-6 mt-1">Enable your camera to begin.</p>
+            </div>
+            
+            <div id="results" class="hidden text-center my-4">
+                <p class="text-gray-400">CURRENT MOOD</p>
+                <p id="mood-text" class="text-5xl font-bold capitalize transition-colors duration-1000">Neutral</p>
+                <div class="w-full bg-gray-700 rounded-full h-2.5 mt-4">
+                    <div id="mood-confidence-bar" class="bg-gray-400 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+                <p id="mood-confidence-text" class="text-sm text-gray-400 mt-1">Confidence: 0%</p>
+            </div>
+            
+            <div class="h-40">
+                 <canvas id="moodChart"></canvas>
+            </div>
+
+            <div class="flex space-x-2">
+                <button id="snapshot-btn" class="hidden w-full bg-teal-600/80 hover:bg-teal-500/80 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-teal-500/50 shadow-lg disabled:bg-gray-600 disabled:cursor-not-allowed">
+                    Save Snapshot
+                </button>
+                <button id="insight-btn" class="hidden w-full bg-indigo-600/80 hover:bg-indigo-500/80 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 shadow-lg disabled:bg-gray-600 disabled:cursor-not-allowed">
+                    Get Mood Insight
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Panel: History & Resources -->
+        <div class="md:col-span-2 flex flex-col space-y-4">
+            <!-- New Feature: Mood History -->
+            <div>
+                <h2 class="text-xl font-bold text-gray-100 mb-2">Mood History</h2>
+                <div id="mood-history-list" class="bg-gray-900/50 rounded-lg p-2 h-48 overflow-y-auto">
+                    <!-- History items will be injected here -->
+                </div>
+            </div>
+            <!-- New Feature: Resource Hub -->
+            <div>
+                <h2 class="text-xl font-bold text-gray-100 mb-2">Resource Hub</h2>
+                <div id="resource-hub" class="bg-gray-900/50 rounded-lg p-4 min-h-[150px]">
+                    <h3 id="resource-title" class="font-semibold text-blue-300">Feeling Neutral?</h3>
+                    <p id="resource-text" class="text-sm text-gray-300 mt-1">Try a mindful observation exercise. Notice five things you can see and three things you can hear right now.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Feature: Modal for Insights -->
+    <div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden">
+        <div id="modal-content" class="glass-container rounded-lg p-6 w-full max-w-md transform scale-95 opacity-0">
+            <h2 class="text-xl font-bold mb-4">A Quick Insight For You</h2>
+            <p id="modal-text" class="text-gray-300 mb-6"></p>
+            <button id="modal-close-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg transition-colors">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // --- IMPORTANT: Paste your Gemini API Key here ---
+        const GEMINI_API_KEY = "AIzaSyD0IxtyUgm15_8J9dJOB4lRrWzMFnSPAk";
+        const GEMINI_API_URL = https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_API_KEY};
+        
+        // UI Elements
+        const UIElements = {
+            video: document.getElementById('video'), canvas: document.getElementById('canvas'), loader: document.getElementById('loader'),
+            loadingText: document.getElementById('loading-text'), statusEl: document.getElementById('status'), resultsEl: document.getElementById('results'),
+            moodTextEl: document.getElementById('mood-text'), moodConfidenceBarEl: document.getElementById('mood-confidence-bar'),
+            moodConfidenceTextEl: document.getElementById('mood-confidence-text'), mainContainer: document.getElementById('main-container'),
+            insightBtn: document.getElementById('insight-btn'), snapshotBtn: document.getElementById('snapshot-btn'), enableCameraBtn: document.getElementById('enable-camera-btn'),
+            moodHistoryList: document.getElementById('mood-history-list'), resourceHub: { title: document.getElementById('resource-title'), text: document.getElementById('resource-text') },
+            modal: { overlay: document.getElementById('modal-overlay'), content: document.getElementById('modal-content'), text: document.getElementById('modal-text'), closeBtn: document.getElementById('modal-close-btn') }
+        };
+        
+        let currentMood = 'neutral';
+        let detectionInterval;
+        let moodChart;
+        let chartData = { labels: [], datasets: [{ data: [], borderColor: '#a1a1aa', borderWidth: 2, tension: 0.4, pointRadius: 0 }] };
+        let moodHistory = [];
+
+        // --- AI Model Loading & Camera Setup ---
+        async function loadModels() {
+            try {
+                // *** FIX: Changed from a relative path to an absolute CDN URL ***
+                const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
+                
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
+                ]);
+                UIElements.loadingText.textContent = "AI Models Loaded.";
+                UIElements.enableCameraBtn.disabled = false;
+                UIElements.enableCameraBtn.textContent = "Enable Camera & Start";
+            } catch (err) {
+                console.error("Model Loading Error:", err);
+                UIElements.loadingText.textContent = "Error loading AI models.";
+                UIElements.statusEl.textContent = "Please refresh the page.";
+            }
+        }
+
+        async function startVideo() {
+            try {
+                UIElements.enableCameraBtn.classList.add('hidden');
+                UIElements.loadingText.textContent = "Accessing camera...";
+
+                const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+                UIElements.video.srcObject = stream;
+                UIElements.video.classList.remove('hidden');
+                
+            } catch (err) {
+                console.error("Camera Access Error:", err);
+                UIElements.loadingText.textContent = "Camera access denied.";
+                UIElements.statusEl.textContent = "Please grant camera permissions and try again.";
+                UIElements.enableCameraBtn.classList.remove('hidden');
+            }
+        }
+
+        // --- Real-time Facial Detection ---
+        UIElements.video.addEventListener('play', () => {
+            UIElements.loader.classList.add('hidden');
+            UIElements.resultsEl.classList.remove('hidden');
+            UIElements.insightBtn.classList.remove('hidden');
+            UIElements.snapshotBtn.classList.remove('hidden');
+            UIElements.statusEl.textContent = "Detecting your expression...";
+            setupMoodChart();
+
+            const displaySize = { width: UIElements.video.clientWidth, height: UIElements.video.clientHeight };
+            faceapi.matchDimensions(canvas, displaySize);
+
+            detectionInterval = setInterval(async () => {
+                const detections = await faceapi.detectAllFaces(UIElements.video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions();
+                
+                // Clear previous drawings
+                const context = canvas.getContext('2d');
+                context.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (detections.length > 0) {
+                    const resizedDetections = faceapi.resizeResults(detections, displaySize);
+                    // faceapi.draw.drawDetections(canvas, resizedDetections); // Optional: draw boxes
+                    // faceapi.draw.drawFaceLandmarks(canvas, resizedDetections); // Optional: draw landmarks
+                    
+                    const expressions = resizedDetections[0].expressions;
+                    const primaryMood = Object.keys(expressions).reduce((a, b) => expressions[a] > expressions[b] ? a : b);
+                    const confidence = Math.round(expressions[primaryMood] * 100);
+                    updateUI(primaryMood, confidence);
+                } else {
+                    updateUI('neutral', 0); // Default to neutral if no face is detected
+                }
+            }, 200); // Detect every 200ms
+        });
+        
+        // --- UI Updates ---
+        function updateUI(mood, confidence) {
+            if (mood !== currentMood) {
+                // Remove all mood classes
+                const moodClasses = ['happy', 'sad', 'angry', 'surprised', 'neutral'];
+                moodClasses.forEach(m => {
+                    UIElements.mainContainer.classList.remove(mood-border-${m});
+                    UIElements.moodTextEl.classList.remove(mood-text-${m});
+                    UIElements.moodConfidenceBarEl.classList.remove(mood-bg-${m});
+                });
+
+                // Add new mood classes
+                UIElements.mainContainer.classList.add(mood-border-${mood});
+                UIElements.moodTextEl.classList.add(mood-text-${mood});
+                UIElements.moodConfidenceBarEl.classList.add(mood-bg-${mood});
+                currentMood = mood;
+            }
+
+            UIElements.moodTextEl.textContent = mood;
+            UIElements.moodConfidenceBarEl.style.width = ${confidence}%;
+            UIElements.moodConfidenceTextEl.textContent = Confidence: ${confidence}%;
+
+            updateChart(mood);
+            updateResourceHub(mood);
+        }
+
+        // --- Mood Chart ---
+        function setupMoodChart() {
+            const ctx = document.getElementById('moodChart').getContext('2d');
+            moodChart = new Chart(ctx, {
+                type: 'line', data: chartData,
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, max: 4, ticks: { stepSize: 1, color: '#9ca3af', callback: (value) => ['Angry', 'Sad', 'Neutral', 'Surprised', 'Happy'][value] } },
+                        x: { ticks: { display: false } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function updateChart(mood) {
+            const moodMap = { 'angry': 0, 'sad': 1, 'neutral': 2, 'surprised': 3, 'happy': 4 };
+            const moodValue = moodMap[mood] !== undefined ? moodMap[mood] : 2;
+
+            if (chartData.labels.length > 30) { // Keep chart to last 30 data points
+                chartData.labels.shift();
+                chartData.datasets[0].data.shift();
+            }
+
+            chartData.labels.push('');
+            chartData.datasets[0].data.push(moodValue);
+            moodChart.update();
+        }
+        
+        // --- Personalized Resource Hub ---
+        function updateResourceHub(mood) {
+            const resources = {
+                happy: { title: "Feeling Happy?", text: "That's great! Try journaling about what's making you feel this way to savor the moment." },
+                sad: { title: "Feeling Sad?", text: "It's okay to feel this way. Consider listening to some calming sounds or music to soothe your mind." },
+                angry: { title: "Feeling Angry?", text: "Take a moment for yourself. A simple 4-second inhale, 6-second exhale breathing exercise can help." },
+                surprised: { title: "Feeling Surprised?", text: "Take a deep breath and ground yourself. Notice the details in the room around you." },
+                neutral: { title: "Feeling Neutral?", text: "This is a perfect time for mindful observation. Notice five things you can see and three things you can hear." }
+            };
+            const resource = resources[mood] || resources['neutral'];
+            UIElements.resourceHub.title.textContent = resource.title;
+            UIElements.resourceHub.text.textContent = resource.text;
+        }
+
+        // --- Mood Snapshot & History ---
+        function saveMoodSnapshot() {
+            const snapshot = {
+                mood: currentMood,
+                confidence: parseInt(UIElements.moodConfidenceBarEl.style.width, 10),
+                timestamp: new Date()
+            };
+            moodHistory.unshift(snapshot); // Add to beginning of array
+            if (moodHistory.length > 20) moodHistory.pop(); // Keep history to 20 entries
+            saveHistoryToLocalStorage();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            UIElements.moodHistoryList.innerHTML = '';
+            if (moodHistory.length === 0) {
+                UIElements.moodHistoryList.innerHTML = <p class="text-gray-400 text-sm p-2 text-center">Your saved snapshots will appear here.</p>;
+                return;
+            }
+            moodHistory.forEach(item => {
+                const itemEl = document.createElement('div');
+                itemEl.className = flex justify-between items-center p-2 rounded-md mb-1 bg-gray-800/50 border-l-4 mood-border-${item.mood};
+                itemEl.innerHTML = <div><p class="font-semibold capitalize">${item.mood}</p><p class="text-xs text-gray-400">${item.timestamp.toLocaleTimeString()}</p></div><p class="text-sm font-medium">${item.confidence}%</p>;
+                UIElements.moodHistoryList.appendChild(itemEl);
+            });
+        }
+        
+        function saveHistoryToLocalStorage() { localStorage.setItem('moodScapeHistory', JSON.stringify(moodHistory)); }
+        function loadHistoryFromLocalStorage() { const savedHistory = localStorage.getItem('moodScapeHistory'); if (savedHistory) { moodHistory = JSON.parse(savedHistory).map(item => ({...item, timestamp: new Date(item.timestamp)})); } renderHistory(); }
+
+        // --- AI Mood Insight with Modal ---
+        async function getMoodInsight() {
+            if (!currentMood) return;
+            UIElements.insightBtn.disabled = true; UIElements.insightBtn.textContent = 'Analyzing...';
+            const systemPrompt = You are a supportive AI assistant. Based on the user's current emotion, provide a brief, constructive, and gentle insight or a simple tip. Keep it to 1-2 sentences. Do not be alarming. Be encouraging.;
+            const userQuery = My current mood is detected as '${currentMood}'. What's a simple insight for this feeling?;
+            try {
+                const payload = { contents: [{ parts: [{ text: userQuery }] }], systemInstruction: { parts: [{ text: systemPrompt }] } };
+                const response = await fetch(GEMINI_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error(API Error: ${response.status});
+                const result = await response.json();
+                const insightText = result.candidates[0].content.parts[0].text;
+                showModal(insightText);
+            } catch (error) {
+                console.error("Insight API Error:", error);
+                showModal("Sorry, couldn't get an insight right now.");
+            } finally {
+                UIElements.insightBtn.disabled = false; UIElements.insightBtn.textContent = 'Get Mood Insight';
+            }
+        }
+
+        function showModal(text) {
+            UIElements.modal.text.textContent = text;
+            UIElements.modal.overlay.classList.remove('hidden');
+            setTimeout(() => { UIElements.modal.overlay.style.opacity = 1; UIElements.modal.content.style.opacity = 1; UIElements.modal.content.style.transform = 'scale(1)'; }, 10);
+        }
+        function hideModal() {
+            UIElements.modal.overlay.style.opacity = 0; UIElements.modal.content.style.opacity = 0; UIElements.modal.content.style.transform = 'scale(0.95)';
+            setTimeout(() => UIElements.modal.overlay.classList.add('hidden'), 300);
+        }
+
+        // --- Event Listeners & Initialization ---
+        UIElements.enableCameraBtn.addEventListener('click', startVideo);
+        UIElements.insightBtn.addEventListener('click', getMoodInsight);
+        UIElements.snapshotBtn.addEventListener('click', saveMoodSnapshot);
+        UIElements.modal.closeBtn.addEventListener('click', hideModal);
+        UIElements.modal.overlay.addEventListener('click', (e) => { if (e.target === UIElements.modal.overlay) hideModal(); });
+        
+        loadHistoryFromLocalStorage();
+        loadModels();
+    </script>
+</body>
+</html>

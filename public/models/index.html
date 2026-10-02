@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MindWell Wellness Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Blockchain Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ipfs-http-client/dist/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass-container { backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
+        .aurora-bg {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); width: 140vw; height: 140vh;
+            background-image: radial-gradient(circle at 0% 0%, #3b82f6, transparent 40%),
+                              radial-gradient(circle at 100% 0%, #10b981, transparent 40%),
+                              radial-gradient(circle at 100% 100%, #8b5cf6, transparent 40%),
+                              radial-gradient(circle at 0% 100%, #ef4444, transparent 40%);
+            animation: aurora-move 20s infinite linear;
+            z-index: -1;
+        }
+        @keyframes aurora-move { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+
+        .typewriter-cursor::after { content: '▋'; animation: blink 1s step-end infinite; color: #3b82f6; }
+        @keyframes blink { 50% { opacity: 0; } }
+    </style>
+</head>
+<body class="bg-slate-900 flex items-center justify-center min-h-screen p-4">
+    <div class="absolute inset-0 z-0 overflow-hidden">
+        <div class="aurora-bg"></div>
+    </div>
+
+    <div class="w-full max-w-5xl glass-container bg-slate-900/60 rounded-2xl p-4 md:p-6 shadow-2xl border border-slate-700 h-[90vh] max-h-[800px] grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Left Panel: Chat Interface -->
+        <div class="md:col-span-2 flex flex-col h-full">
+            <div class="flex-shrink-0 flex justify-between items-center mb-4">
+                <div>
+                    <h1 class="text-xl font-bold text-slate-100">MindWell Assistant</h1>
+                    <p id="wallet-address" class="text-xs text-blue-400">Initializing secure identity...</p>
+                </div>
+                <select id="language-selector" class="bg-slate-800/80 border border-slate-600/50 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-auto p-2.5">
+                    <option value="English" selected>English</option>
+                    <option value="Hindi">हिन्दी (Hindi)</option>
+                    <option value="Bengali">বাংলা (Bengali)</option>
+                    <option value="Telugu">తెలుగు (Telugu)</option>
+                </select>
+            </div>
+
+            <div id="chat-history" class="custom-scrollbar flex-grow bg-black/30 rounded-lg p-4 space-y-4 overflow-y-auto">
+                <!-- Chat messages will be dynamically inserted here -->
+            </div>
+
+            <div class="flex-shrink-0 mt-4 flex items-center space-x-2">
+                <form id="chat-form" class="flex-grow flex items-center bg-slate-800 rounded-full border border-slate-600">
+                    <input id="user-input" type="text" placeholder="Type your message..." autocomplete="off" class="flex-grow bg-transparent p-3 pl-5 text-slate-200 focus:outline-none">
+                    <button id="send-btn" type="submit" class="p-2 m-1 bg-blue-600 hover:bg-blue-500 rounded-full transition-colors text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
+                </form>
+                <button id="save-btn" title="Save chat to private ledger" class="p-3 bg-slate-700 hover:bg-slate-600 rounded-full transition-colors text-green-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                </button>
+                <button id="clearConvBtn" title="Clear conversation" class="p-3 bg-red-600 hover:bg-red-500 rounded-full transition-colors text-white ml-2">Clear</button>
+                <button id="downloadLedgerBtn" title="Download ledger as CSV" class="p-3 bg-blue-700 hover:bg-blue-600 rounded-full transition-colors text-white ml-2">Download Ledger</button>
+            </div>
+        </div>
+
+        <!-- Right Panel: Tools & History -->
+        <div class="md:col-span-1 flex flex-col space-y-4 h-full">
+            <!-- New Feature: Quick Tools -->
+            <div>
+                <h2 class="text-lg font-bold text-slate-100 mb-2">Quick Tools</h2>
+                <div class="bg-black/30 rounded-lg p-3 space-y-2">
+                    <button id="starter-btn" class="w-full flex items-center gap-3 text-left p-3 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg transition-colors text-yellow-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10s10-4.48 10-10S17.52 2 12 2zm1 16h-2v-2h2v2zm-1-4c-1.1 0-2-.9-2-2V8c0-1.1.9-2 2-2s2 .9 2 2v4c0 1.1-.9 2-2 2z"/></svg>
+                        <span class="font-semibold text-slate-200">Conversation Starter</span>
+                    </button>
+                    <button id="affirmation-btn" class="w-full flex items-center gap-3 text-left p-3 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg transition-colors text-pink-400">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5C2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3C19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                        <span class="font-semibold text-slate-200">Positive Affirmation</span>
+                    </button>
+                     <button id="activity-btn" class="w-full flex items-center gap-3 text-left p-3 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg transition-colors text-teal-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2c5.52 0 10 4.48 10 10s-4.48 10-10 10S2 17.52 2 12S6.48 2 12 2zm0 18c4.41 0 8-3.59 8-8s-3.59-8-8-8s-8 3.59-8 8s3.59 8 8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+                        <span class="font-semibold text-slate-200">2-Minute Activity</span>
+                    </button>
+                </div>
+            </div>
+             <!-- New Feature: Guided Journey -->
+            <div>
+                 <h2 class="text-lg font-bold text-slate-100 mb-2">For Deeper Reflection</h2>
+                 <div class="bg-black/30 rounded-lg p-3">
+                    <button id="journey-btn" class="w-full flex items-center gap-3 text-left p-3 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg transition-colors text-purple-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10s10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8s8 3.59 8 8s-3.59 8-8-8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+                        <span class="font-semibold text-slate-200">Start a Guided Journey</span>
+                    </button>
+                 </div>
+            </div>
+
+            <!-- New Feature: Chat History Ledger -->
+            <div class="flex-grow flex flex-col">
+                <h2 class="text-lg font-bold text-slate-100 mb-2">My Private Ledger</h2>
+                <div id="ledger-history" class="custom-scrollbar bg-black/30 rounded-lg p-2 flex-grow overflow-y-auto">
+                   <p class="text-slate-400 text-sm p-2 text-center">Your saved chat summaries will appear here.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <canvas id="mood-chart" style="width:100%;max-width:400px;height:80px;"></canvas>
+    </div>
+
+    <script>
+        const GEMINI_API_KEY = "AIzaSyBNQ4WTtZZsv5UbSc2BOlJTmPLmq8dIo9s"; // IMPORTANT: Replace with your key
+        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_API_KEY}`;
+
+        // DOM Elements
+        const DOMElements = {
+            chatHistory: document.getElementById('chat-history'), chatForm: document.getElementById('chat-form'),
+            userInput: document.getElementById('user-input'), sendBtn: document.getElementById('send-btn'),
+            starterBtn: document.getElementById('starter-btn'), saveBtn: document.getElementById('save-btn'),
+            walletAddressEl: document.getElementById('wallet-address'), languageSelector: document.getElementById('language-selector'),
+            affirmationBtn: document.getElementById('affirmation-btn'), activityBtn: document.getElementById('activity-btn'),
+            journeyBtn: document.getElementById('journey-btn'), ledgerHistory: document.getElementById('ledger-history'),
+            moodChart: document.getElementById('mood-chart'),
+            clearConvBtn: document.getElementById('clearConvBtn'),
+            downloadLedgerBtn: document.getElementById('downloadLedgerBtn')
+        };
+        
+        let isLoading = false; let conversationHistory = []; let userWallet = null; let typewriterInterval;
+        let sentimentHistory = [];
+        let chartInstance = null;
+
+        // --- System Prompts for AI Persona ---
+    const mainSystemPrompt = "You are 'MindWell Assistant,' a digital mental health and psychological support system for students in higher education... (Your full prompt here)";
+    const starterSystemPrompt = "You are an AI that generates one insightful, open-ended conversation starter for a university student...";
+    const summarySystemPrompt = "Summarize the key points and feelings expressed in the following user-AI conversation into a concise, empathetic paragraph.";
+    const affirmationSystemPrompt = "Generate a single, positive, and encouraging affirmation for a university student. Keep it short.";
+    const activitySystemPrompt = "Suggest a simple, actionable 2-minute activity a student can do right now to de-stress.";
+        
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            setupUserIdentity();
+            addMessageToChat('ai', 'Hello! I\'m here to support your well-being. How can I help you today?');
+            loadConversation();
+            loadLedger();
+            // Event listeners
+            DOMElements.chatForm.addEventListener('submit', handleFormSubmit);
+            DOMElements.starterBtn.addEventListener('click', () => handleQuickTool(starterSystemPrompt));
+            DOMElements.affirmationBtn.addEventListener('click', () => handleQuickTool(affirmationSystemPrompt, true));
+            DOMElements.activityBtn.addEventListener('click', () => handleQuickTool(activitySystemPrompt, true));
+            DOMElements.saveBtn.addEventListener('click', saveChatToLedger);
+            DOMElements.journeyBtn.addEventListener('click', () => addMessageToChat('ai', 'Guided Journeys are coming soon! This feature will walk you through structured exercises for specific challenges.'));
+            DOMElements.clearConvBtn.addEventListener('click', clearConversation);
+            DOMElements.downloadLedgerBtn.addEventListener('click', downloadLedgerCSV);
+            setupMoodChart();
+        });
+
+        // --- Blockchain & Identity ---
+        function setupUserIdentity() {
+            if (window.ethers) {
+                let privateKey = localStorage.getItem('mindWellUserPrivateKey');
+                if (!privateKey) {
+                    const newWallet = window.ethers.Wallet.createRandom();
+                    privateKey = newWallet.privateKey;
+                    localStorage.setItem('mindWellUserPrivateKey', privateKey);
+                }
+                userWallet = new window.ethers.Wallet(privateKey);
+                const addr = userWallet.address;
+                DOMElements.walletAddressEl.textContent = `Wallet: ${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
+            } else {
+                DOMElements.walletAddressEl.textContent = 'Blockchain library not found.';
+            }
+        }
+
+        // --- Core Chat Logic ---
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            const messageText = DOMElements.userInput.value.trim();
+            if (!messageText || isLoading) return;
+            
+            addMessageToChat('user', messageText);
+            analyzeSentiment(messageText, 'user');
+            DOMElements.userInput.value = '';
+            setLoading(true);
+
+            try {
+                const response = await callGeminiAPI(messageText, mainSystemPrompt);
+                addMessageToChat('ai', response, true);
+            } catch (error) {
+                addMessageToChat('ai', 'Sorry, I encountered an error. Please try again.');
+            } finally {
+                setLoading(false);
+            }
+        }
+        
+        // --- New Feature: Quick Tools Logic ---
+        async function handleQuickTool(systemPrompt, isOneLiner = false) {
+             if (isLoading) return;
+             setLoading(true);
+             try {
+                const promptText = isOneLiner ? "Generate a response." : "Generate a conversation starter.";
+                const response = await callGeminiAPI(promptText, systemPrompt);
+                addMessageToChat('ai', response, true);
+            } catch (error) {
+                addMessageToChat('ai', 'I had a little trouble with that request. Could you try again?');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // --- New Feature: Save to Ledger ---
+        async function saveChatToLedger() {
+            if (isLoading || conversationHistory.length < 2) {
+                alert("Please have a conversation before saving.");
+                return;
+            }
+            setLoading(true);
+            try {
+                const fullConversation = conversationHistory.map(m => `${m.sender}: ${m.text}`).join('\n');
+                const summary = await callGeminiAPI(fullConversation, summarySystemPrompt);
+                
+                const ipfs = window.IpfsHttpClient.create({ url: 'https://ipfs.infura.io:5001/api/v0' });
+                const signature = await userWallet.signMessage(summary);
+                const payload = JSON.stringify({ summary, signature });
+                const { cid } = await ipfs.add(payload);
+
+                const ledgerEntry = { summary, cid: cid.toString(), timestamp: new Date() };
+                const savedLedger = JSON.parse(localStorage.getItem('mindWellLedger') || '[]');
+                savedLedger.unshift(ledgerEntry);
+                localStorage.setItem('mindWellLedger', JSON.stringify(savedLedger));
+                
+                renderLedger();
+                addMessageToChat('ai', "This conversation summary has been privately saved to your wellness ledger.");
+            } catch(error) {
+                console.error("Save Error:", error);
+                addMessageToChat('ai', 'There was an error saving your conversation.');
+            } finally {
+                setLoading(false);
+            }
+        }
+        
+        function renderLedger() {
+            const savedLedger = JSON.parse(localStorage.getItem('mindWellLedger') || '[]');
+            DOMElements.ledgerHistory.innerHTML = '';
+          if(savedLedger.length === 0) {
+              DOMElements.ledgerHistory.innerHTML = '<p class="text-slate-400 text-sm p-2 text-center">Your saved chat summaries will appear here.</p>';
+              return;
+          }
+            savedLedger.forEach(entry => {
+                const entryEl = document.createElement('div');
+                entryEl.className = 'p-2 bg-slate-800/50 rounded-lg mb-2 text-sm';
+                entryEl.innerHTML = `
+                    <p class="text-slate-300 truncate">${entry.summary}</p>
+                    <div class="flex justify-between items-center mt-1">
+                        <p class="text-xs text-slate-400">${new Date(entry.timestamp).toLocaleString()}</p>
+                        <a href="https://ipfs.io/ipfs/${entry.cid}" target="_blank" class="text-xs text-teal-400 hover:underline">View on IPFS</a>
+                    </div>
+                `;
+                DOMElements.ledgerHistory.appendChild(entryEl);
+            });
+        }
+
+        // --- New Feature: Sentiment Analysis & Mood Chart ---
+        function analyzeSentiment(text, sender) {
+            // Use Gemini API for sentiment analysis (simulate for demo)
+            // Replace with actual API call for production
+            let sentiment = 'neutral';
+            if (/happy|great|good|awesome|love|excited|joy|positive/i.test(text)) sentiment = 'positive';
+            else if (/sad|bad|down|angry|upset|hate|depressed|negative/i.test(text)) sentiment = 'negative';
+            sentimentHistory.push({ msg: text, sentiment });
+            updateMoodChart();
+        }
+
+        function setupMoodChart() {
+            const ctx = DOMElements.moodChart.getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Sentiment',
+                        data: [],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59,130,246,0.1)',
+                        tension: 0.4,
+                        pointRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            min: -1, max: 1,
+                            ticks: {
+                                callback: v => v === 1 ? 'Positive' : v === 0 ? 'Neutral' : 'Negative',
+                                color: '#9ca3af', stepSize: 1
+                           
