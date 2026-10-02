@@ -4,7 +4,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-const MODEL = "gemini-1.5-pro-latest"; // or "gemini-2.0-flash" when generally available
+const MODEL = "gemini-2.5-flash";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
